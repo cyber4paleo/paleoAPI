@@ -24,6 +24,8 @@ def occurrence_dups():
 
   occs_json = json.load(open('./canis.json'))  
 
+  pbdb = []
+  neotoma = []
   compact = []
   for occ in occs_json['records']:
 
@@ -37,17 +39,47 @@ def occurrence_dups():
       occ['min_age'] = min_age_tmp
       occ['max_age'] = max_age_tmp
 
-    compact.append({"id": occ['occurrence_no'], 
+    # Normalize lat/lng to XX.XX level of precision
+    lat_rnd = round(occ['lat'], 2)
+    lng_rnd = round(occ['lng'], 2)
+
+    if 'Neotoma' == occ['database']:
+      neotoma.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
-                    "lat": occ['lat'], 
-                    "lng": occ['lng'], 
+                    "lat": lat_rnd, 
+                    "lng": lng_rnd, 
                     "min_age": occ['min_age'], 
                     "max_age": occ['max_age'], 
                     "age_unit": occ['age_unit']})
 
-    sorted_compact = sorted(compact, key=operator.itemgetter('lat'))
+    if 'PaleoBioDB' == occ['database']:
+      pbdb.append({"id": occ['occurrence_no'], 
+                    "database": occ['database'],
+                    "lat": lat_rnd, 
+                    "lng": lng_rnd, 
+                    "min_age": occ['min_age'], 
+                    "max_age": occ['max_age'], 
+                    "age_unit": occ['age_unit']})
 
-  return Response(response=json.dumps(sorted_compact), status=200, mimetype="application/json") 
+    matches = []
+    for pb in pbdb:
+      for neo in neotoma: 
+
+        if pb['lat'] == neo['lat'] and pb['lng'] == neo['lng']:
+          print "match found"
+          matches.append({"pbdb": pb, "neotoma": neo})
+
+
+
+    #sorted_pbdb    = sorted(pbdb, key=operator.itemgetter('lat'))
+    #sorted_neotoma = sorted(neotoma, key=operator.itemgetter('lat'))
+
+
+
+
+    resp = {"status": "shaky at best", "matches": matches}
+
+  return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
 @app.errorhandler(404)
 def page_not_found(e):
