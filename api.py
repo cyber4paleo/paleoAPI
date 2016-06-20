@@ -18,16 +18,26 @@ def index():
 def occurrence_dups():
  
   
+  data_source = request.args.get('data_source')
+
   dist_round = unidecode.unidecode( request.args.get('dist_round') )
   if dist_round is None:
     dist_round = 2
 
-  #occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb")
-  #if 200 == occs.status_code:
-  #occs_json = json.loads(occs.content)
+  # TODO: Neotoma Fix Timeout
+  
+  # Composite API can do time normalization
 
-  # Loading file since Composite API is timing out on Neotoma API call periodically
-  occs_json = json.load(open('./canis.json'))  
+  occs_json = []
+  if 'api' == data_source:
+    occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb&ageunit=ma")
+    if 200 == occs.status_code:
+      occs_json = json.loads(occs.content)
+
+  elif 'file' == data_source: 
+
+    # Loading file since Composite API is timing out on Neotoma API call periodically
+    occs_json = json.load(open('./canis.json'))  
 
   pbdb = []
   neotoma = []
@@ -73,18 +83,18 @@ def occurrence_dups():
       for neo in neotoma: 
 
         # Coords Match
-        if pb['lat'] == neo['lat'] and pb['lng'] == neo['lng']:
+        if 1.0 >= abs(pb['lat'] - neo['lat']) and 1.0 >= abs(pb['lng'] - neo['lng']):
 
           # Time Ranges 
           if neo['max_age'] <= pb['max_age'] and neo['min_age'] >= pb['min_age']:
 
             # Accepted Names Match
-            #if pb['accepted_name'] == neo['accepted_name']:
+            if pb['accepted_name'] == neo['accepted_name']:
   
-            print "match found"
-            matches.append({"pbdb": pb, "neotoma": neo})
+              print "match found"
+              matches.append({"pbdb": pb, "neotoma": neo})
 
-  resp = {"status": "shaky at best", "matches": matches}
+  resp = {"status": "shaky at best", "num_matches": len(matches), "matches": matches}
   return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
 @app.errorhandler(404)
