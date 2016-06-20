@@ -26,7 +26,17 @@ def occurrence_dups():
 
   compact = []
   for occ in occs_json['records']:
-    print occ
+
+    # Normalize to Ma
+    if "ybp" == occ['age_unit']:
+
+      min_age_tmp = ( float(occ['min_age']) / 1000000 )
+      max_age_tmp = ( float(occ['max_age']) / 1000000 )
+
+      occ['age_unit'] = 'Ma'
+      occ['min_age'] = min_age_tmp
+      occ['max_age'] = max_age_tmp
+
     compact.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
                     "lat": occ['lat'], 
