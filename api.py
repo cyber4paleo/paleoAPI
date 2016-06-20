@@ -16,13 +16,24 @@ def index():
 @app.route("/occurrence_dups", methods=['GET'])
 def occurrence_dups():
  
-  occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb")
-  if 200 == occs.status_code:
-    occs_json = json.loads(occs.content)
-  
-    compact = []
-    for occ in occs_json['records']:
-      compact.append({"id": occ['occurrence_no'], "lat": occ['lat'], "lng": occ['lng'], "min_age": occ['min_age'], "max_age": occ['max_age'], "age_unit": occ['age_unit']})
+  # Loading file since Composite API is timing out on Neotoma API call periodically
+
+  #occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb")
+  #if 200 == occs.status_code:
+  #occs_json = json.loads(occs.content)
+
+  occs_json = json.load(open('./canis.json'))  
+
+  compact = []
+  for occ in occs_json['records']:
+    print occ
+    compact.append({"id": occ['occurrence_no'], 
+                    "database": occ['database'],
+                    "lat": occ['lat'], 
+                    "lng": occ['lng'], 
+                    "min_age": occ['min_age'], 
+                    "max_age": occ['max_age'], 
+                    "age_unit": occ['age_unit']})
 
     sorted_compact = sorted(compact, key=operator.itemgetter('lat'))
 
