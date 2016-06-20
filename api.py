@@ -4,6 +4,7 @@
 import json
 import operator
 import requests
+import unidecode
 from flask import Flask, request, Response
 app = Flask(__name__)
 
@@ -16,12 +17,16 @@ def index():
 @app.route("/occurrence_dups", methods=['GET'])
 def occurrence_dups():
  
-  # Loading file since Composite API is timing out on Neotoma API call periodically
+  
+  dist_round = unidecode.unidecode( request.args.get('dist_round') )
+  if dist_round is None:
+    dist_round = 2
 
   #occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb")
   #if 200 == occs.status_code:
   #occs_json = json.loads(occs.content)
 
+  # Loading file since Composite API is timing out on Neotoma API call periodically
   occs_json = json.load(open('./canis.json'))  
 
   pbdb = []
@@ -40,12 +45,13 @@ def occurrence_dups():
       occ['max_age'] = max_age_tmp
 
     # Normalize lat/lng to XX.XX level of precision
-    lat_rnd = round(occ['lat'], 2)
-    lng_rnd = round(occ['lng'], 2)
+    lat_rnd = round(occ['lat'], int(dist_round))
+    lng_rnd = round(occ['lng'], int(dist_round))
 
     if 'Neotoma' == occ['database']:
       neotoma.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
+                    "accepted_name": occ['accepted_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
                     "min_age": occ['min_age'], 
@@ -55,6 +61,7 @@ def occurrence_dups():
     if 'PaleoBioDB' == occ['database']:
       pbdb.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
+                    "accepted_name": occ['accepted_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
                     "min_age": occ['min_age'], 
@@ -65,20 +72,19 @@ def occurrence_dups():
     for pb in pbdb:
       for neo in neotoma: 
 
+        # Coords Match
         if pb['lat'] == neo['lat'] and pb['lng'] == neo['lng']:
-          print "match found"
-          matches.append({"pbdb": pb, "neotoma": neo})
 
+          # Time Ranges 
+          if neo['max_age'] <= pb['max_age'] and neo['min_age'] >= pb['min_age']:
 
+            # Accepted Names Match
+            #if pb['accepted_name'] == neo['accepted_name']:
+  
+            print "match found"
+            matches.append({"pbdb": pb, "neotoma": neo})
 
-    #sorted_pbdb    = sorted(pbdb, key=operator.itemgetter('lat'))
-    #sorted_neotoma = sorted(neotoma, key=operator.itemgetter('lat'))
-
-
-
-
-    resp = {"status": "shaky at best", "matches": matches}
-
+  resp = {"status": "shaky at best", "matches": matches}
   return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
 @app.errorhandler(404)
