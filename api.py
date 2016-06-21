@@ -26,22 +26,28 @@ def occurrence_dups():
   # TODO: Neotoma Fix Timeout
   occs_json = []
   if 'api' == data_source:
-    occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb&ageunit=ma")
+    occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=subq,loc&vocab=pbdb", timeout=None)
     if 200 == occs.status_code:
       occs_json = json.loads(occs.content)
-
+    
   elif 'file' == data_source: 
 
     # Loading file since Composite API is timing out on Neotoma API call periodically
     occs_json = json.load(open('./canis.json'))  
 
-  pbdb = []
+
+  print "Number of records: " + str(len(occs_json['records']))
+
+  # inits
+  pbdb    = []
   neotoma = []
   compact = []
+  matches = []
+
   for occ in occs_json['records']:
 
     # Normalize to Ma
-    if "ybp" == occ['age_unit']:
+    if 'age_unit' in occ and "ybp" == occ['age_unit']:
 
       min_age_tmp = ( float(occ['min_age']) / 1000000 )
       max_age_tmp = ( float(occ['max_age']) / 1000000 )
@@ -49,6 +55,20 @@ def occurrence_dups():
       occ['age_unit'] = 'Ma'
       occ['min_age'] = min_age_tmp
       occ['max_age'] = max_age_tmp
+
+    # init
+    if 'age_unit' in occ:
+      age_unit = occ['age_unit']
+
+    if 'min_age' in occ:
+      min_age = occ['min_age']
+
+    if 'max_age' in occ:
+      max_age = occ['max_age']
+    
+
+    print "orig lat: " + str(occ['lat'])
+    print "orig lng: " + str(occ['lng'])    
 
     # Normalize lat/lng to XX.XX level of precision
     lat_rnd = round(occ['lat'], int(dist_round))
@@ -61,9 +81,9 @@ def occurrence_dups():
                     "accepted_name": occ['accepted_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
-                    "min_age": occ['min_age'], 
-                    "max_age": occ['max_age'], 
-                    "age_unit": occ['age_unit']})
+                    "min_age": min_age, 
+                    "max_age": max_age, 
+                    "age_unit": age_unit})
 
     if 'PaleoBioDB' == occ['database']:
       pbdb.append({"id": occ['occurrence_no'], 
@@ -71,32 +91,40 @@ def occurrence_dups():
                     "accepted_name": occ['accepted_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
-                    "min_age": occ['min_age'], 
-                    "max_age": occ['max_age'], 
-                    "age_unit": occ['age_unit']})
+                    "min_age": min_age, 
+                    "max_age": max_age, 
+                    "age_unit": age_unit})
 
 
+  # keep track of the breakdown
+  pbdb_counts = len(pbdb)
+  neo_counts  = len(neotoma)
 
-    # If data records match following three criteria, call it a match
-    matches = []
-    for pb in pbdb:
-      for neo in neotoma: 
+  print "Starting Matching section"
+ 
+  # If data records match following three criteria, call it a match
+  for pb in pbdb:
+    for neo in neotoma: 
 
-        # Coords Match
-        if 1.0 >= abs(pb['lat'] - neo['lat']) and 1.0 >= abs(pb['lng'] - neo['lng']):
+      # Coords Match
+      if 1.0 >= abs(pb['lat'] - neo['lat']) and 1.0 >= abs(pb['lng'] - neo['lng']):
 
-          # Time Ranges 
-          if neo['max_age'] <= pb['max_age'] and neo['min_age'] >= pb['min_age']:
+        print "Coords Match"
 
-            # Accepted Names Match
-            if pb['accepted_name'] == neo['accepted_name']:
-  
-              print "match found"
-              matches.append({"pbdb": pb, "neotoma": neo})
+        # Time Ranges 
+        if neo['max_age'] <= pb['max_age'] and neo['min_age'] >= pb['min_age']:
 
+          print "Time match"
+
+          # Accepted Names Match
+          if pb['accepted_name'] == neo['accepted_name']:
+            print "match found"
+            matches.append({"pbdb": pb, "neotoma": neo})
+
+  print "done matching"
 
   # Build JSON Response
-  resp = {"status": "shaky at best", "num_matches": len(matches), "matches": matches}
+  resp = {"status": "shaky at best", "pbdb_count": pbdb_counts, "neo_counts": neo_counts, "num_matches": len(matches), "matches": matches}
   return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
 @app.errorhandler(404)
