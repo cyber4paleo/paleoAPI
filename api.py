@@ -19,6 +19,7 @@ def occurrence_dups():
  
   data_source = request.args.get('data_source')
   dist_round  = request.args.get('dist_round')
+  base_name   = request.args.get('base_name')
 
   if dist_round is None:
     dist_round = 2
@@ -26,7 +27,7 @@ def occurrence_dups():
   # TODO: Neotoma Fix Timeout
   occs_json = []
   if 'api' == data_source:
-    occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=subq,loc&vocab=pbdb", timeout=None)
+    occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=" + base_name + "&show=subq,loc&vocab=pbdb", timeout=None)
     if 200 == occs.status_code:
       occs_json = json.loads(occs.content)
     
