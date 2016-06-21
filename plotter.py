@@ -46,12 +46,14 @@ if 200 == occs.status_code:
   n_bins = 100
   fig = plt.figure()
  
+  pb_points = 100 + 15 * np.random.randn(10000)
+
   pn, pbins, ppatches = plt.hist(pb_points, n_bins, normed=0, color='green', alpha=0.5)
   #bn, bbins, bpatches = plt.hist(neo_points, n_bins, normed=0, color='red', alpha=0.5)
 
   plt.plot(pn)
   #plt.plot(bn)
-  plt.xlim(lo_min, hi_max)
+  #plt.xlim(lo_min, hi_max)
   plt.xlabel('Geologic Time (Ma)')
   plt.ylabel('# Occurrences')
   plt.title('Occurrence Distribution')

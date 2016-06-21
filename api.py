@@ -24,7 +24,7 @@ def index():
 @app.route('/plot.png')
 def plot():
 
- occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=canidae&show=subq,loc&vocab=pbdb", timeout=None)
+ occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=cetacea&show=subq,loc&vocab=pbdb", timeout=None)
  if 200 == occs.status_code:
    occs_json = json.loads(occs.content)
 
@@ -33,6 +33,7 @@ def plot():
    # inits
    pbdb    = []
    neotoma = []
+   ages    = []
 
    # Filter List for incomplete records
    occs_json['records'][:] = [occ for occ in occs_json['records'] if 'max_age' in occ]
@@ -57,12 +58,16 @@ def plot():
      # calculate mean
      mean_age = np.mean([max_age, min_age])
 
-     # Splitting out concat'ed data for comparison
-     if 'Neotoma' == occ['database']:
-       neotoma.append(mean_age)
+     ages.append(mean_age)
 
-     if 'PaleoBioDB' == occ['database']:
-       pbdb.append(mean_age)
+     # Splitting out concat'ed data for comparison
+     if 'Neotoma' == occ['database'] and mean_age is not None:
+       neotoma.append(float(mean_age))
+
+     if 'PaleoBioDB' == occ['database'] and mean_age is not None:
+       pbdb.append(float(mean_age))
+
+
 
    # Determine our Age Range
    hi_max = max(occ['max_age'] for occ in occs_json['records'])
@@ -72,37 +77,39 @@ def plot():
    pbdb_counts = len(pbdb)
    neo_counts  = len(neotoma)
 
-   fig, ax = plt.subplots()
-   index = np.arange(5)
-   bar_width = 0.35
-   opacity = 0.4
-   error_config = {'ecolor': '0.3'}
 
-   print "pbdb count: " + str(pbdb_counts)
-   print "neo count: " + str(neo_counts)
+   pb_points  = np.array( pbdb )
+   neo_points = np.array( neotoma )
 
-   pb_points  = tuple(pbdb[:5])
-   neo_points = tuple(neotoma[:5])
 
-   print neo_points
+   bin_size = np.arange(0.0, 0.6, 0.01)
 
-   # Define our Bars
-   rects1 = plt.bar(index, pb_points, bar_width, alpha=opacity, color='b',  error_kw=error_config, label='PaleoBioDB')
-   rects2 = plt.bar(index + bar_width, neo_points, bar_width, alpha=opacity, color='g',  error_kw=error_config, label='Neotoma')
+   bin_size = np.arange(0, 5, 0.1)
 
-   plt.xlabel('Geologic Time')
+   fig = plt.gcf()
+   #fig = plt.figure()
+
+   pn, pbins, ppatches = plt.hist(pb_points, normed=0, color='green', bins=bin_size, alpha=0.5)
+   bn, bbins, bpatches = plt.hist(neo_points, normed=0, color='red', bins=bin_size, alpha=0.5)
+
+   #p, bins, patches = plt.hist([pb_points, neo_points], n_bins, normed=0, color=['green', 'blue'], alpha=0.5)
+
+
+   #plt.plot(pn)
+   #plt.plot(bn)
+   #plt.xlim(0, 0.1)
+   plt.xlabel('Geologic Time (Ma)')
    plt.ylabel('# Occurrences')
-   plt.title('Occurrence Distribution between PaleoBioDB and Neotoma')
-   plt.xticks(index + bar_width)
-   plt.legend()
-   #plt.tight_layout() 
-   plt.axis('tight')
+   plt.title('Occurrence Distribution')
+   plt.grid(True)
 
+   # Write to canvas for web display
    canvas = FigureCanvas(fig)
    output = StringIO.StringIO()
    canvas.print_png(output)
 
    return Response(response=output.getvalue(), status=200, mimetype="image/png")
+   #return Response(response=json.dumps({'okay':'okay'}), status=200, mimetype="application/json")
 
 # Occurrence Duplication Check
 @app.route("/occurrence_dups", methods=['GET'])
