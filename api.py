@@ -47,6 +47,10 @@ def occurrence_dups():
   compact = []
   matches = []
 
+  # Filter List for incomplete records
+  occs_json['records'][:] = [occ for occ in occs_json['records'] if 'max_age' in occ]
+
+  
   for occ in occs_json['records']:
 
     # Normalize to Ma
@@ -100,6 +104,9 @@ def occurrence_dups():
                     "max_age": max_age, 
                     "age_unit": age_unit})
 
+  # Determine our Age Range
+  hi_max = max(occ['max_age'] for occ in occs_json['records'])
+  lo_min = min(occ['min_age'] for occ in occs_json['records'])
 
   # keep track of the breakdown
   pbdb_counts = len(pbdb)
@@ -134,6 +141,8 @@ def occurrence_dups():
           ("pbdb_count", pbdb_counts), 
           ("neo_count", neo_counts), 
           ("num_matches", len(matches)), 
+          ("hi_max", hi_max),
+          ("low_min", lo_min),
           ("matches", matches))
   resp = collections.OrderedDict(resp)
 
