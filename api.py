@@ -4,7 +4,6 @@
 import json
 import operator
 import requests
-import unidecode
 from flask import Flask, request, Response
 app = Flask(__name__)
 
@@ -14,20 +13,17 @@ app = Flask(__name__)
 def index():
   return "PaleoAPI"
 
+# Occurrence Duplication Check
 @app.route("/occurrence_dups", methods=['GET'])
 def occurrence_dups():
  
-  
   data_source = request.args.get('data_source')
+  dist_round  = request.args.get('dist_round')
 
-  dist_round = unidecode.unidecode( request.args.get('dist_round') )
   if dist_round is None:
     dist_round = 2
 
   # TODO: Neotoma Fix Timeout
-  
-  # Composite API can do time normalization
-
   occs_json = []
   if 'api' == data_source:
     occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=Canis&show=loc&vocab=pbdb&ageunit=ma")
@@ -58,6 +54,7 @@ def occurrence_dups():
     lat_rnd = round(occ['lat'], int(dist_round))
     lng_rnd = round(occ['lng'], int(dist_round))
 
+    # Splitting out concat'ed data for comparison
     if 'Neotoma' == occ['database']:
       neotoma.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
@@ -78,6 +75,9 @@ def occurrence_dups():
                     "max_age": occ['max_age'], 
                     "age_unit": occ['age_unit']})
 
+
+
+    # If data records match following three criteria, call it a match
     matches = []
     for pb in pbdb:
       for neo in neotoma: 
@@ -94,6 +94,8 @@ def occurrence_dups():
               print "match found"
               matches.append({"pbdb": pb, "neotoma": neo})
 
+
+  # Build JSON Response
   resp = {"status": "shaky at best", "num_matches": len(matches), "matches": matches}
   return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
