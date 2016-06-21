@@ -2,10 +2,16 @@
 # Flask microframework driven RESTful API Dispatcher
 
 import json
+import random
+import StringIO
 import operator
 import requests
 import collections
+import numpy as np
+import matplotlib.pyplot as plt
 from flask import Flask, request, Response
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
 app = Flask(__name__)
 
 
@@ -13,6 +19,90 @@ app = Flask(__name__)
 @app.route("/")
 def index():
   return "PaleoAPI"
+
+# Plot
+@app.route('/plot.png')
+def plot():
+
+ occs = requests.get("http://training.paleobiodb.org/comp1.0/occs/list.json?base_name=canidae&show=subq,loc&vocab=pbdb", timeout=None)
+ if 200 == occs.status_code:
+   occs_json = json.loads(occs.content)
+
+   composite_count = len(occs_json['records'])
+
+   # inits
+   pbdb    = []
+   neotoma = []
+
+   # Filter List for incomplete records
+   occs_json['records'][:] = [occ for occ in occs_json['records'] if 'max_age' in occ]
+   for occ in occs_json['records']:
+
+     # Normalize to Ma
+     if 'age_unit' in occ and "ybp" == occ['age_unit']:
+
+       min_age_tmp = ( float(occ['min_age']) / 1000000 )
+       max_age_tmp = ( float(occ['max_age']) / 1000000 )
+
+       occ['age_unit'] = 'Ma'
+       occ['min_age'] = min_age_tmp
+       occ['max_age'] = max_age_tmp
+       
+     if 'min_age' in occ:
+       min_age = occ['min_age']
+
+     if 'max_age' in occ:
+       max_age = occ['max_age']
+    
+     # calculate mean
+     mean_age = np.mean([max_age, min_age])
+
+     # Splitting out concat'ed data for comparison
+     if 'Neotoma' == occ['database']:
+       neotoma.append(mean_age)
+
+     if 'PaleoBioDB' == occ['database']:
+       pbdb.append(mean_age)
+
+   # Determine our Age Range
+   hi_max = max(occ['max_age'] for occ in occs_json['records'])
+   lo_min = min(occ['min_age'] for occ in occs_json['records'])
+
+   # keep track of the breakdown
+   pbdb_counts = len(pbdb)
+   neo_counts  = len(neotoma)
+
+   fig, ax = plt.subplots()
+   index = np.arange(5)
+   bar_width = 0.35
+   opacity = 0.4
+   error_config = {'ecolor': '0.3'}
+
+   print "pbdb count: " + str(pbdb_counts)
+   print "neo count: " + str(neo_counts)
+
+   pb_points  = tuple(pbdb[:5])
+   neo_points = tuple(neotoma[:5])
+
+   print neo_points
+
+   # Define our Bars
+   rects1 = plt.bar(index, pb_points, bar_width, alpha=opacity, color='b',  error_kw=error_config, label='PaleoBioDB')
+   rects2 = plt.bar(index + bar_width, neo_points, bar_width, alpha=opacity, color='g',  error_kw=error_config, label='Neotoma')
+
+   plt.xlabel('Geologic Time')
+   plt.ylabel('# Occurrences')
+   plt.title('Occurrence Distribution between PaleoBioDB and Neotoma')
+   plt.xticks(index + bar_width)
+   plt.legend()
+   #plt.tight_layout() 
+   plt.axis('tight')
+
+   canvas = FigureCanvas(fig)
+   output = StringIO.StringIO()
+   canvas.print_png(output)
+
+   return Response(response=output.getvalue(), status=200, mimetype="image/png")
 
 # Occurrence Duplication Check
 @app.route("/occurrence_dups", methods=['GET'])
