@@ -8,3 +8,11 @@ PBDB/Neotoma Composite API - deduplication detection
 
 - Determine factors for what qualifies as a duplicate occurrence between PBDB and Neotoma
 
+
+
+#### Data Visulization
+- Identify Highest Max, Lowest Min age to bound our X Axis
+- Create a Binning alogorithm based on range
+
+
+
