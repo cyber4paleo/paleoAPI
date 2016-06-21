@@ -4,6 +4,7 @@
 import json
 import operator
 import requests
+import collections
 from flask import Flask, request, Response
 app = Flask(__name__)
 
@@ -37,6 +38,7 @@ def occurrence_dups():
     occs_json = json.load(open('./canis.json'))  
 
 
+  composite_count = len(occs_json['records'])
   print "Number of records: " + str(len(occs_json['records']))
 
   # inits
@@ -80,6 +82,7 @@ def occurrence_dups():
       neotoma.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
                     "accepted_name": occ['accepted_name'],
+                    "collection_name": occ['collection_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
                     "min_age": min_age, 
@@ -90,6 +93,7 @@ def occurrence_dups():
       pbdb.append({"id": occ['occurrence_no'], 
                     "database": occ['database'],
                     "accepted_name": occ['accepted_name'],
+                    "collection_name": occ['collection_name'],
                     "lat": lat_rnd, 
                     "lng": lng_rnd, 
                     "min_age": min_age, 
@@ -125,7 +129,14 @@ def occurrence_dups():
   print "done matching"
 
   # Build JSON Response
-  resp = {"status": "shaky at best", "pbdb_count": pbdb_counts, "neo_counts": neo_counts, "num_matches": len(matches), "matches": matches}
+  resp = (("status", "shaky at best"), 
+          ("composite_count", composite_count), 
+          ("pbdb_count", pbdb_counts), 
+          ("neo_count", neo_counts), 
+          ("num_matches", len(matches)), 
+          ("matches", matches))
+  resp = collections.OrderedDict(resp)
+
   return Response(response=json.dumps(resp), status=200, mimetype="application/json") 
 
 @app.errorhandler(404)
